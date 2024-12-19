@@ -26,6 +26,7 @@
     (expresion ("var" (separated-list identificador "=" expresion ",") "in" expresion "end") var-exp)
     (expresion ("let" (separated-list identificador "=" expresion ",") "in" expresion "end") let-exp)
     (expresion ("letrec" (arbno identificador "(" (separated-list identificador ",") ")" "=" expresion) "in" expresion) letrec-exp)
+    (expresion ("if" bool-expresion "then" expresion (arbno "elseif" bool-expresion "then" expresion) "else" expresion "end") if-exp)
     (expresion ("proc" "(" (separated-list identificador ",") ")" expresion) proc-exp)
     (expresion ("apply" identificador "(" (separated-list expresion ",") ")") apply-exp)
 
@@ -265,6 +266,7 @@
       (a-caracter (c) (string-ref c 1))
       (a-cadena (str) (substring str 1 (- (string-length str) 1)))
       (empty-exp () empty)
+      ;; Estructura var
       (var-exp (lids lexps body)
         (let
           (
@@ -273,6 +275,7 @@
           (evaluar-expresion body (ambiente-extendido-ref lids (list->vector lvalues) amb))
         )
       )
+      ;; Estructura let
       (let-exp (lids lexps body)
         (let
           (
@@ -281,9 +284,20 @@
           (evaluar-expresion body (ambiente-extendido lids lvalues amb))
         )
       )
+      ;; Estructura letrec
       (letrec-exp (procnames idss cuerpos cuerpo-letrec)
         (evaluar-expresion cuerpo-letrec
           (ambiente-extendido-recursivo procnames idss cuerpos amb)
+        )
+      )
+      ;; Estructura if
+      (if-exp (cond1 es-true lifs lexps es-false)
+        (cond
+          [(evaluar-bool-expresion cond1 amb) (evaluar-expresion es-true amb)]
+          [(null? lifs) (evaluar-expresion es-false amb)]
+          [else
+            (evaluar-expresion (if-exp (car lifs) (car lexps) (cdr lifs) (cdr lexps) es-false) amb)
+          ]
         )
       )
       (proc-exp (ids body) (closure ids body amb))
