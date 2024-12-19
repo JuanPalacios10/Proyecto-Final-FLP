@@ -1,4 +1,9 @@
 #lang eopl
+; Juan Miguel Palacios Doncel #2359321
+; Nicolas Rodriguez Romero #2266071
+; Jhon Alexis Ruiz Quiceno #2266014
+
+(require rackunit)
 
 (define especificacion-lexica
   '(
@@ -583,10 +588,17 @@
   )
 )
 
+;;scan&parse para las pruebas
+(define scan&parse
+  (sllgen:make-string-parser especificacion-lexica especificacion-gramatical))
+
+
 ;;Interpretador
 (define interpretador
   (sllgen:make-rep-loop "-->" evaluar-programa
                         (sllgen:make-stream-parser
                          especificacion-lexica especificacion-gramatical)))
 
-(interpretador)
+(provide (all-defined-out)) 
+
+;; (interpretador)
