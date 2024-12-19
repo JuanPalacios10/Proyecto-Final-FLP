@@ -25,6 +25,9 @@
     (expresion ("ok") empty-exp)
     (expresion ("var" (separated-list identificador "=" expresion ",") "in" expresion "end") var-exp)
     (expresion ("let" (separated-list identificador "=" expresion ",") "in" expresion "end") let-exp)
+    (expresion ("letrec" (arbno identificador "(" (separated-list identificador ",") ")" "=" expresion) "in" expresion) letrec-exp)
+    (expresion ("proc" "(" (separated-list identificador ",") ")" expresion) proc-exp)
+    (expresion ("apply" identificador "(" (separated-list expresion ",") ")") apply-exp)
 
     ;; Expresiones bool-expresion
     (bool-expresion ("true") true-exp)
@@ -128,6 +131,34 @@
 ;   )
 ; )
 
+(define ambiente-extendido-recursivo
+  (lambda (procnames lidss cuerpos old-env)
+    (let
+        (
+           (vec-clausuras (make-vector (length procnames)))
+        )
+      (letrec
+        (
+          (amb (ambiente-extendido-ref procnames vec-clausuras old-env))
+          (obtener-clausuras
+            (lambda (lidss cuerpos pos)
+              (cond
+                [(null? lidss) amb]
+                [else
+                  (begin
+                    (vector-set! vec-clausuras pos
+                                (closure (car lidss) (car cuerpos) amb))
+                    (obtener-clausuras (cdr lidss) (cdr cuerpos) (+ pos 1)))]
+                )
+              )
+            )
+          )
+        (obtener-clausuras lidss cuerpos 0)
+      )
+    )
+  )
+)
+
 (define check-env
   (lambda (amb var)
     (let
@@ -169,10 +200,13 @@
             (buscar-variable
              (lambda (lid vec pos)
                (cond
-                 [(null? lid) (check-env old-env var)]
-                 [(equal? (car lid) var) (a-ref pos vec)]
-                 [else
-                  (buscar-variable (cdr lid) vec (+ pos 1))])))
+                  [(null? lid) (check-env old-env var)]
+                  [(equal? (car lid) var) (a-ref pos vec)]
+                  [else
+                  (buscar-variable (cdr lid) vec (+ pos 1))]
+                )
+              )
+            )
           )
           (buscar-variable lid vec 0)
         )
@@ -245,6 +279,30 @@
             (lvalues (map (lambda (x) (evaluar-expresion x amb)) lexps))
           )
           (evaluar-expresion body (ambiente-extendido lids lvalues amb))
+        )
+      )
+      (letrec-exp (procnames idss cuerpos cuerpo-letrec)
+        (evaluar-expresion cuerpo-letrec
+          (ambiente-extendido-recursivo procnames idss cuerpos amb)
+        )
+      )
+      (proc-exp (ids body) (closure ids body amb))
+      (apply-exp (procname lexps)
+        (let
+          (
+            (lrands (map (lambda (x) (evaluar-expresion x amb)) lexps))
+            (procV (check-env amb procname))
+          )
+          (if (procval? procV)
+            (cases procval procV
+            (closure (lid body old-env)
+              (if (= (length lid) (length lrands))
+                (evaluar-expresion body (ambiente-extendido-ref lid (list->vector lrands) old-env))
+                (eopl:error "El número de argumentos no es correcto, debe enviar" (length lid)  " y usted ha enviado" (length lrands))
+              )
+            ))
+            (eopl:error "No puede evaluarse algo que no sea un procedimiento" procV) 
+          )
         )
       )
     )
