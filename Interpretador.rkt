@@ -32,6 +32,7 @@
     (expresion ("if" bool-expresion "then" expresion (arbno "elseif" bool-expresion "then" expresion) "else" expresion "end") if-exp)
     (expresion ("proc" "(" (separated-list identificador ",") ")" expresion) proc-exp)
     (expresion ("apply" identificador "(" (separated-list expresion ",") ")") apply-exp)
+    (expresion ("for" identificador "=" expresion "to" expresion "do" expresion "end") for-exp)
 
     ;; Expresiones bool-expresion
     (bool-expresion ("true") true-exp)
@@ -429,6 +430,30 @@
             ))
             (eopl:error "No puede evaluarse algo que no sea un procedimiento" procV) 
           )
+        )
+      )
+      ;; Estructura for
+      (for-exp (id valor cond-parada hacer)
+        (letrec
+          (
+            (lvalues (list (evaluar-expresion valor amb)))
+            (parada (evaluar-expresion cond-parada amb))
+            (ide (ambiente-extendido-ref (list id) (list->vector lvalues) amb))
+            (iterador (lambda (ide val parada hacer)
+              (let* 
+                (
+                  [nuevo-amb (ambiente-extendido-ref (list id) (list->vector val) amb)]
+                  [resultado-hacer (evaluar-expresion hacer nuevo-amb)]
+                  [nuevo-val (+ 1 (car val))] 
+                )
+                (if (> nuevo-val parada)
+                  resultado-hacer
+                  (iterador ide (list nuevo-val) parada hacer)
+                )
+              )
+            ))
+          )
+          (iterador ide lvalues parada hacer)
         )
       )
     )
