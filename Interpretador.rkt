@@ -18,7 +18,6 @@
   '(
     (programa (expresion) a-program)
     (expresion (bool-expresion) a-bool-expresion)
-    (expresion (primitiva "(" (arbno expresion) ")") prim-exp)
     (expresion (identificador) id-exp)
     (expresion (numero) a-numero)
     (expresion (caracter) a-caracter)
@@ -26,7 +25,10 @@
     (expresion ("ok") empty-exp)
     (expresion ("var" (separated-list identificador "=" expresion ",") "in" expresion "end") var-exp)
     (expresion ("let" (separated-list identificador "=" expresion ",") "in" expresion "end") let-exp)
-    (expresion ("letrec" (arbno identificador "(" (separated-list identificador ",") ")" "=" expresion) "in" expresion) letrec-exp)
+    (expresion ("letrec" (arbno identificador "(" (separated-list identificador ",") ")" "=" expresion) "in" expresion "end") letrec-exp)
+    (expresion ("set" identificador ":=" expresion) set-exp)
+    (expresion ("begin" expresion (arbno ";" expresion) "end") begin-exp)
+    (expresion (primitiva "(" (arbno expresion) ")") prim-exp)
     (expresion ("if" bool-expresion "then" expresion (arbno "elseif" bool-expresion "then" expresion) "else" expresion "end") if-exp)
     (expresion ("proc" "(" (separated-list identificador ",") ")" expresion) proc-exp)
     (expresion ("apply" identificador "(" (separated-list expresion ",") ")") apply-exp)
@@ -76,6 +78,12 @@
     (lvalue (list-of values?))
     (old-env ambiente?)
   )
+  (ambiente-extendido-rec
+    (procnames (list-of symbol?))
+    (lidss (list-of (list-of symbol?)))
+    (cuerpos (list-of expresion?))
+    (old-env ambiente?)
+  )
   (ambiente-extendido-ref
     (lids (list-of symbol?))
     (lvalue vector?)
@@ -86,88 +94,35 @@
 (define ambiente-inicial
   (ambiente-extendido '(x y z) '(4 2 5) (ambiente-vacio)))
 
-
-; (define check-env
-;   (lambda (amb fenv args)
-;     (cases ambiente amb
-;       (ambiente-vacio () (apply fenv args))
-;       (ambiente-extendido (lid lval old-env)
-;         (apply fenv args)
-;       )
-;       (ambiente-extendido-ref (lid vec old-env)
-;         (deref (apply fenv args))
-;       )
-;     )
-;   )
-; )
-
-; (define apply-env
-;   (lambda (env var)
-;     (cases ambiente env
-;       (ambiente-vacio () (eopl:error "No se encuentra la variable " var))
-;       (ambiente-extendido (lid lval old-env)
-;         (letrec
-;           (
-;             (buscar-variable (lambda (lid lval)
-;               (cond
-;                 [(null? lid) (check-env old-env apply-env (list old-env var))]
-;                 [(equal? (car lid) var) (car lval)]
-;                 [else
-;                   (buscar-variable (cdr lid) (cdr lval) old-env)]
-;                 )
-;             ))
-;           )
-;           ; (buscar-variable lid lval)
-;           (check-env old-env buscar-variable (list lid lval))
+; (define ambiente-extendido-recursivo
+;   (lambda (procnames lidss cuerpos old-env)
+;     (let
+;         (
+;            (vec-clausuras (make-vector (length procnames)))
 ;         )
-;       )
-;       (ambiente-extendido-ref (lid vec old-env)
-;         (letrec
-;           (
-;             (buscar-variable (lambda (lid vec pos)
+;       (letrec
+;         (
+;           (amb (ambiente-extendido-ref procnames vec-clausuras old-env))
+;           (obtener-clausuras
+;             (lambda (lidss cuerpos pos)
 ;               (cond
-;                 [(null? lid) (check-env old-env apply-env (list old-env var))]
-;                 [(equal? (car lid) var) (a-ref pos vec)]
+;                 [(null? lidss) amb]
 ;                 [else
-;                   (buscar-variable (cdr lid) vec (+ pos 1))]
-;               ))
+;                   (begin
+;                     (vector-set! vec-clausuras pos
+;                     (closure (car lidss) (car cuerpos) amb))
+;                     (obtener-clausuras (cdr lidss) (cdr cuerpos) (+ pos 1))
+;                   )
+;                 ]
+;                 )
+;               )
 ;             )
 ;           )
-;           ; (buscar-variable lid vec 0)
-;           (check-env old-env buscar-variable (list lid vec 0))
-;         )
+;         (obtener-clausuras lidss cuerpos 0)
 ;       )
 ;     )
 ;   )
 ; )
-
-(define ambiente-extendido-recursivo
-  (lambda (procnames lidss cuerpos old-env)
-    (let
-        (
-           (vec-clausuras (make-vector (length procnames)))
-        )
-      (letrec
-        (
-          (amb (ambiente-extendido-ref procnames vec-clausuras old-env))
-          (obtener-clausuras
-            (lambda (lidss cuerpos pos)
-              (cond
-                [(null? lidss) amb]
-                [else
-                  (begin
-                    (vector-set! vec-clausuras pos
-                                (closure (car lidss) (car cuerpos) amb))
-                    (obtener-clausuras (cdr lidss) (cdr cuerpos) (+ pos 1)))]
-                )
-              )
-            )
-          )
-        (obtener-clausuras lidss cuerpos 0)
-      )
-    )
-  )
-)
 
 (define check-env
   (lambda (amb var)
@@ -183,6 +138,49 @@
   )
 )
 
+; (define apply-env
+;   (lambda (env var)
+;     (cases ambiente env
+;       (ambiente-vacio () (eopl:error "No se encuentra la variable " var))
+;       (ambiente-extendido (lid lval old-env)
+;         (letrec
+;           (
+;             (buscar-variable
+;              (lambda (lid lval)
+;                (cond
+;                   [(null? lid) (check-env old-env var)]
+;                   [(equal? (car lid) var) (car lval)]
+;                   [else
+;                   (buscar-variable (cdr lid) (cdr lval))
+;                   ]
+;                 )
+;               )
+;             )
+;           )
+;           (buscar-variable lid lval)
+;         )
+;       ) 
+;       (ambiente-extendido-ref (lid vec old-env)
+;         (letrec
+;           (
+;             (buscar-variable
+;              (lambda (lid vec pos)
+;                (cond
+;                   [(null? lid) (check-env old-env var)]
+;                   [(equal? (car lid) var) (a-ref pos vec)]
+;                   [else
+;                   (buscar-variable (cdr lid) vec (+ pos 1))]
+;                 )
+;               )
+;             )
+;           )
+;           (buscar-variable lid vec 0)
+;         )
+;       )
+;     )
+;   )
+; )
+
 (define apply-env
   (lambda (env var)
     (cases ambiente env
@@ -193,10 +191,11 @@
             (buscar-variable
              (lambda (lid lval)
                (cond
-                 [(null? lid) (check-env old-env var)]
-                 [(equal? (car lid) var) (car lval)]
-                 [else
-                  (buscar-variable (cdr lid) (cdr lval))]
+                  [(null? lid) (apply-env old-env var)]
+                  [(equal? (car lid) var) (car lval)]
+                  [else
+                  (buscar-variable (cdr lid) (cdr lval))
+                  ]
                 )
               )
             )
@@ -204,13 +203,28 @@
           (buscar-variable lid lval)
         )
       ) 
+      (ambiente-extendido-rec (procnames lidss cuerpos old-env)
+        (let 
+          (
+            (pos (list-find-position var procnames))
+          )
+            (if (number? pos)
+              (closure 
+                (list-ref lidss pos)
+                (list-ref cuerpos pos) 
+                env
+              )
+              (apply-env old-env var)
+            )
+        )
+      )
       (ambiente-extendido-ref (lid vec old-env)
         (letrec
           (
             (buscar-variable
              (lambda (lid vec pos)
                (cond
-                  [(null? lid) (check-env old-env var)]
+                  [(null? lid) (apply-env old-env var)]
                   [(equal? (car lid) var) (a-ref pos vec)]
                   [else
                   (buscar-variable (cdr lid) vec (+ pos 1))]
@@ -220,6 +234,50 @@
           )
           (buscar-variable lid vec 0)
         )
+      )
+    )
+  )
+)
+
+(define set-env!
+  (lambda (env var val)
+    (cases ambiente env
+      (ambiente-vacio () (eopl:error "No se encuentra la variable " var))
+      (ambiente-extendido (lids lvalues old-env)
+        (letrec
+          (
+            (buscar-variable (lambda (lids lvalues)
+              (cond
+                [(null? lids) (set-env! old-env var val)]
+                [(equal? (car lids) var)
+                 (eopl:error "No se puede cambiar el valor de la variable" var)
+                ]
+                [else
+                 (buscar-variable (cdr lids) (cdr lvalues))])))
+          )
+          (buscar-variable lids lvalues)
+        )
+      )
+      (ambiente-extendido-rec (procnames lidss cuerpos old-env)
+        (letrec
+          (
+            (buscar-variable (lambda (procnames)
+              (cond
+                [(null? procnames) (set-env! old-env var val)]
+                [(equal? (car procnames) var)
+                 (eopl:error "No se puede cambiar el valor de la variable" var)
+                ]
+                [else
+                 (buscar-variable (cdr procnames))
+                ]
+              ))
+            )
+          )
+          (buscar-variable procnames)
+        )
+      )
+      (ambiente-extendido-ref (lids vec old-env)
+        (setref! (apply-env env var) val)
       )
     )
   )
@@ -270,14 +328,6 @@
   (lambda (exp amb)
     (cases expresion exp
       (a-bool-expresion (bool-exp) (evaluar-bool-expresion bool-exp amb))
-      (prim-exp (prim lexp) 
-        (let
-          (
-            (lvalues (map (lambda (x) (evaluar-expresion x amb)) lexp))
-          )
-          (evaluar-prim-expresion prim lvalues)
-        )
-      )
       (a-numero (n) n)
       (id-exp (v) (check-env amb v))
       (a-caracter (c) (string-ref c 1))
@@ -304,7 +354,50 @@
       ;; Estructura letrec
       (letrec-exp (procnames idss cuerpos cuerpo-letrec)
         (evaluar-expresion cuerpo-letrec
-          (ambiente-extendido-recursivo procnames idss cuerpos amb)
+          (ambiente-extendido-rec procnames idss cuerpos amb)
+        )
+      )
+      ;; Estructura set
+      (set-exp (var exp)
+        (let
+          (
+            (val (evaluar-expresion exp amb))
+          )
+          (set-env! amb var val)
+        )
+      )
+      ;; Estructura begin
+      (begin-exp (exp lexp)
+        (if (null? lexp)
+          (evaluar-expresion exp amb)
+          (begin
+            (evaluar-expresion exp amb)
+            (letrec
+                (
+                  (evaluar-begin (lambda (lexp)
+                    (cond
+                      [(null? (cdr lexp)) (evaluar-expresion (car lexp) amb)]
+                      [else
+                        (begin
+                          (evaluar-expresion (car lexp) amb)
+                          (evaluar-begin (cdr lexp))
+                        )
+                      ]
+                    ))
+                  )
+                )
+              (evaluar-begin lexp)
+            )
+          )
+        )
+      )
+      ;; Estructura primitiva
+      (prim-exp (prim lexp) 
+        (let
+          (
+            (lvalues (map (lambda (x) (evaluar-expresion x amb)) lexp))
+          )
+          (evaluar-prim-expresion prim lvalues)
         )
       )
       ;; Estructura if
@@ -317,7 +410,9 @@
           ]
         )
       )
+      ;; Estructura proc
       (proc-exp (ids body) (closure ids body amb))
+      ;; Estructura apply
       (apply-exp (procname lexps)
         (let
           (
@@ -339,8 +434,6 @@
     )
   )
 )
-
-
 
 (define evaluar-bool-expresion
   (lambda (exp amb)
@@ -409,6 +502,24 @@
   )
 )
 
+(define list-find-position
+  (lambda (simbolo lista)
+    (letrec 
+      (
+        (aux 
+          (lambda (lst pos)
+            (cond
+              [(null? lst) (eopl:error "No se encuentra el simbolo" simbolo)]                   
+              [(equal? simbolo (car lst)) pos]     
+              [else (aux (cdr lst) (+ pos 1))]
+            )
+          )
+        )
+      )
+      (aux lista 0)
+    )
+  )
+)
 
 (define (andmap f lst)
   (if (null? lst)
