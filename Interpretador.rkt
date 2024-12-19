@@ -18,6 +18,7 @@
   '(
     (programa (expresion) a-program)
     (expresion (bool-expresion) a-bool-expresion)
+    (expresion (primitiva "(" (arbno expresion) ")") prim-exp)
     (expresion (identificador) id-exp)
     (expresion (numero) a-numero)
     (expresion (caracter) a-caracter)
@@ -47,6 +48,14 @@
     (bool-oper ("and") and-oper)
     (bool-oper ("or") or-oper)
     (bool-oper ("not") not-oper)
+
+    ;;Expresiones Primivitas
+    (primitiva ("+") suma-prim)
+    (primitiva ("-") resta-prim)
+    (primitiva ("*") mult-prim)
+    (primitiva ("%") mod-prim)
+    (primitiva ("&") concat-prim)
+
   )
 )
 
@@ -261,6 +270,14 @@
   (lambda (exp amb)
     (cases expresion exp
       (a-bool-expresion (bool-exp) (evaluar-bool-expresion bool-exp amb))
+      (prim-exp (prim lexp) 
+        (let
+          (
+            (lvalues (map (lambda (x) (evaluar-expresion x amb)) lexp))
+          )
+          (evaluar-prim-expresion prim lvalues)
+        )
+      )
       (a-numero (n) n)
       (id-exp (v) (check-env amb v))
       (a-caracter (c) (string-ref c 1))
@@ -323,6 +340,8 @@
   )
 )
 
+
+
 (define evaluar-bool-expresion
   (lambda (exp amb)
     (cases bool-expresion exp
@@ -377,6 +396,19 @@
     )
   )
 )
+
+(define evaluar-prim-expresion
+  (lambda (prim lvalues)
+    (cases primitiva prim
+      (suma-prim () (apply + lvalues))
+      (resta-prim () (apply - lvalues))
+      (mult-prim () (apply * lvalues))
+      (mod-prim () (apply modulo lvalues))
+      (concat-prim () (apply string-append lvalues))
+    )
+  )
+)
+
 
 (define (andmap f lst)
   (if (null? lst)
