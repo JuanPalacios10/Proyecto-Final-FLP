@@ -70,30 +70,75 @@
   )
 )
 
-; (define ambiente-extendido
-;   (lambda (lids lvalue old-env)
-;     (ambiente-extendido-ref lids (list->vector lvalue) old-env)))
-
 (define ambiente-inicial
   (ambiente-extendido '(x y z) '(4 2 5) (ambiente-vacio)))
 
+
+; (define check-env
+;   (lambda (amb fenv args)
+;     (cases ambiente amb
+;       (ambiente-vacio () (apply fenv args))
+;       (ambiente-extendido (lid lval old-env)
+;         (apply fenv args)
+;       )
+;       (ambiente-extendido-ref (lid vec old-env)
+;         (deref (apply fenv args))
+;       )
+;     )
+;   )
+; )
+
 ; (define apply-env
 ;   (lambda (env var)
-;     (deref (apply-env-ref env var))
+;     (cases ambiente env
+;       (ambiente-vacio () (eopl:error "No se encuentra la variable " var))
+;       (ambiente-extendido (lid lval old-env)
+;         (letrec
+;           (
+;             (buscar-variable (lambda (lid lval)
+;               (cond
+;                 [(null? lid) (check-env old-env apply-env (list old-env var))]
+;                 [(equal? (car lid) var) (car lval)]
+;                 [else
+;                   (buscar-variable (cdr lid) (cdr lval) old-env)]
+;                 )
+;             ))
+;           )
+;           ; (buscar-variable lid lval)
+;           (check-env old-env buscar-variable (list lid lval))
+;         )
+;       )
+;       (ambiente-extendido-ref (lid vec old-env)
+;         (letrec
+;           (
+;             (buscar-variable (lambda (lid vec pos)
+;               (cond
+;                 [(null? lid) (check-env old-env apply-env (list old-env var))]
+;                 [(equal? (car lid) var) (a-ref pos vec)]
+;                 [else
+;                   (buscar-variable (cdr lid) vec (+ pos 1))]
+;               ))
+;             )
+;           )
+;           ; (buscar-variable lid vec 0)
+;           (check-env old-env buscar-variable (list lid vec 0))
+;         )
+;       )
+;     )
 ;   )
 ; )
 
 (define check-env
-  (lambda (amb fenv args)
-    (cases ambiente amb
-      (ambiente-vacio () (apply fenv args))
-      (ambiente-extendido (lid lval old-env)
-        (apply fenv args)
+  (lambda (amb var)
+    (let
+      (
+        (ref (apply-env amb var))
       )
-      (ambiente-extendido-ref (lid vec old-env)
-        (deref (apply fenv args))
-      )
-    )
+      (if (referencia? ref)
+        (deref ref)
+        ref
+      ) 
+    ) 
   )
 )
 
@@ -104,33 +149,32 @@
       (ambiente-extendido (lid lval old-env)
         (letrec
           (
-            (buscar-variable (lambda (lid lval)
-              (cond
-                [(null? lid) (check-env old-env apply-env (list old-env var))]
-                [(equal? (car lid) var) (car lval)]
-                [else
-                  (buscar-variable (cdr lid) (cdr lval) old-env)]
+            (buscar-variable
+             (lambda (lid lval)
+               (cond
+                 [(null? lid) (check-env old-env var)]
+                 [(equal? (car lid) var) (car lval)]
+                 [else
+                  (buscar-variable (cdr lid) (cdr lval))]
                 )
-            ))
+              )
+            )
           )
-          ; (buscar-variable lid lval)
-          (check-env old-env buscar-variable (list lid lval))
+          (buscar-variable lid lval)
         )
-      )
+      ) 
       (ambiente-extendido-ref (lid vec old-env)
         (letrec
           (
-            (buscar-variable (lambda (lid vec pos)
-              (cond
-                [(null? lid) (check-env old-env apply-env (list old-env var))]
-                [(equal? (car lid) var) (a-ref pos vec)]
-                [else
-                  (buscar-variable (cdr lid) vec (+ pos 1))]
-              ))
-            )
+            (buscar-variable
+             (lambda (lid vec pos)
+               (cond
+                 [(null? lid) (check-env old-env var)]
+                 [(equal? (car lid) var) (a-ref pos vec)]
+                 [else
+                  (buscar-variable (cdr lid) vec (+ pos 1))])))
           )
-          ; (buscar-variable lid vec 0)
-          (check-env old-env buscar-variable (list lid vec 0))
+          (buscar-variable lid vec 0)
         )
       )
     )
@@ -183,7 +227,7 @@
     (cases expresion exp
       (a-bool-expresion (bool-exp) (evaluar-bool-expresion bool-exp amb))
       (a-numero (n) n)
-      (id-exp (v) (apply-env amb v))
+      (id-exp (v) (check-env amb v))
       (a-caracter (c) (string-ref c 1))
       (a-cadena (str) (substring str 1 (- (string-length str) 1)))
       (empty-exp () empty)
