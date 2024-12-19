@@ -15,7 +15,7 @@
       (numero (digit (arbno digit)"." digit (arbno digit)) number)
       (numero ("-" digit (arbno digit)"." digit (arbno digit)) number)
       (caracter ("'" (or letter digit) "'") string)
-      (cadena ("\"" (arbno (or letter digit)) "\"") string)
+      (cadena ("\"" (arbno (or letter digit whitespace)) "\"") string)
   )
 )
 
@@ -100,36 +100,6 @@
 (define ambiente-inicial
   (ambiente-extendido '(x y z) '(4 2 5) (ambiente-vacio)))
 
-; (define ambiente-extendido-recursivo
-;   (lambda (procnames lidss cuerpos old-env)
-;     (let
-;         (
-;            (vec-clausuras (make-vector (length procnames)))
-;         )
-;       (letrec
-;         (
-;           (amb (ambiente-extendido-ref procnames vec-clausuras old-env))
-;           (obtener-clausuras
-;             (lambda (lidss cuerpos pos)
-;               (cond
-;                 [(null? lidss) amb]
-;                 [else
-;                   (begin
-;                     (vector-set! vec-clausuras pos
-;                     (closure (car lidss) (car cuerpos) amb))
-;                     (obtener-clausuras (cdr lidss) (cdr cuerpos) (+ pos 1))
-;                   )
-;                 ]
-;                 )
-;               )
-;             )
-;           )
-;         (obtener-clausuras lidss cuerpos 0)
-;       )
-;     )
-;   )
-; )
-
 (define check-env
   (lambda (amb var)
     (let
@@ -143,49 +113,6 @@
     ) 
   )
 )
-
-; (define apply-env
-;   (lambda (env var)
-;     (cases ambiente env
-;       (ambiente-vacio () (eopl:error "No se encuentra la variable " var))
-;       (ambiente-extendido (lid lval old-env)
-;         (letrec
-;           (
-;             (buscar-variable
-;              (lambda (lid lval)
-;                (cond
-;                   [(null? lid) (check-env old-env var)]
-;                   [(equal? (car lid) var) (car lval)]
-;                   [else
-;                   (buscar-variable (cdr lid) (cdr lval))
-;                   ]
-;                 )
-;               )
-;             )
-;           )
-;           (buscar-variable lid lval)
-;         )
-;       ) 
-;       (ambiente-extendido-ref (lid vec old-env)
-;         (letrec
-;           (
-;             (buscar-variable
-;              (lambda (lid vec pos)
-;                (cond
-;                   [(null? lid) (check-env old-env var)]
-;                   [(equal? (car lid) var) (a-ref pos vec)]
-;                   [else
-;                   (buscar-variable (cdr lid) vec (+ pos 1))]
-;                 )
-;               )
-;             )
-;           )
-;           (buscar-variable lid vec 0)
-;         )
-;       )
-;     )
-;   )
-; )
 
 (define apply-env
   (lambda (env var)
@@ -601,4 +528,4 @@
 
 (provide (all-defined-out)) 
 
-;; (interpretador)
+; (interpretador)

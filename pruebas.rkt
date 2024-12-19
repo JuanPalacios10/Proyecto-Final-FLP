@@ -5,6 +5,7 @@
 
 (require rackunit "interpretador.rkt")
 
+<<<<<<< Updated upstream
 (define var_begin
   (scan&parse
     "var x = 1, y = 2, z = 3 in begin x end end"
@@ -53,3 +54,53 @@
 )
 
 (check-equal?  (evaluar-programa if_exp) expected_if_exp)
+=======
+(define prueba-letrec1
+  (scan&parse
+    "letrec fact(n) = if is(n, 0) then 1 else *(n apply fact(-(n 1))) end in apply fact(5) end"
+  )
+)
+
+
+(check-equal? (evaluar-programa prueba-letrec1) 120)
+
+(define prueba-letrec2
+  (scan&parse
+    "letrec mult(x, y) = if is(y, 0) then 0 else +(x apply mult(x, -(y 1))) end in apply mult(4, 5) end"
+  )
+)
+
+(check-equal? (evaluar-programa prueba-letrec2) 20)
+
+(define prueba-proc1
+  (scan&parse
+    "let suma = proc(x, y) +(x y) in apply suma(3, 4) end"
+  )
+)
+
+(check-equal? (evaluar-programa prueba-letrec2) 20)
+
+(define prueba-proc2 
+  (scan&parse
+    "let sumaPrimeros = proc(n) var suma = 0 in for i = 1 to n do begin set suma := +(suma i); suma end end end in apply sumaPrimeros(4) end"
+  )
+)
+
+(check-equal? (evaluar-programa prueba-proc2) 10)
+
+(define prueba-fibo
+  (scan&parse
+    "letrec fibo(n) = if is(n, 0) then 0 elseif is(n, 1) then 1 else +(apply fibo(-(n 1)) apply fibo(-(n 2))) end in apply fibo(5) end"
+  )
+)
+
+(check-equal? (evaluar-programa prueba-fibo) 5)
+
+(define prueba-string
+  (scan&parse
+    "let mostrarEdad = proc(edad) if >(edad, 18) then \"Eres mayor de edad\" elseif and(>=(edad, 0), <=(edad, 18)) then \"Eres menor de edad\" else \"Edad invalida\" end in apply mostrarEdad(10) end"
+  )
+)
+
+(check-equal? (evaluar-programa prueba-string) "Eres menor de edad")
+>>>>>>> Stashed changes
